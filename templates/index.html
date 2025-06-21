@@ -9,10 +9,41 @@
 <body>
     <div class="container">
         <h1>Chat with Llama</h1>
-        <div id="chat-container"></div>
-        <div class="input-container">
-            <input type="text" id="message-input" placeholder="Type your message...">
-            <button id="send-button" onclick="sendMessage()">Send</button>
+        <div class="mode-selector">
+            <button id="manual-mode" class="mode-button active">Manual Chat</button>
+            <button id="simulation-mode" class="mode-button">Simulation Mode</button>
+        </div>
+        
+        <!-- Manual Chat Interface -->
+        <div id="manual-chat" class="chat-interface active">
+            <div id="chat-container"></div>
+            <div class="input-container">
+                <input type="text" id="message-input" placeholder="Type your message...">
+                <button id="send-button" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+        
+        <!-- Simulation Interface -->
+        <div id="simulation-chat" class="chat-interface">
+            <div class="simulation-controls">
+                <select id="user-agent-type">
+                    <option value="frustrated_customer">Frustrated Customer (Delayed Materials)</option>
+                    <option value="confused_elderly">Confused Elderly (Tool Setup)</option>
+                    <option value="anxious_student">Anxious DIYer (Overwhelmed Project)</option>
+                    <option value="demanding_executive">Demanding Contractor (Urgent Job)</option>
+                    <option value="frustrated_homeowner">Frustrated Homeowner (DIY Project)</option>
+                    <option value="anxious_tech_user">Anxious Customer (Tool Problems)</option>
+                    <option value="demanding_customer">Demanding Customer (Delayed Order)</option>
+                    <option value="elderly_homeowner">Elderly Homeowner (Home Project)</option>
+                </select>
+                <select id="chat-agent-type">
+                    <option value="homedepo_agent">Home Depot Agent</option>
+                </select>
+                <input type="number" id="max-turns" value="6" min="1" max="20" step="1">
+                <button id="start-simulation" onclick="startSimulation()">Start Simulation</button>
+            </div>
+            <div id="simulation-container"></div>
+            <div id="simulation-status"></div>
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>

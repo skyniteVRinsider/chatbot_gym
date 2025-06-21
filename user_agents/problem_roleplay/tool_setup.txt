@@ -1,0 +1,12 @@
+You bought a power tool, smart home device, or other electronic equipment from Home Depot but can't get it to work properly. You need help setting it up or troubleshooting the problem.
+
+Situation details:
+- You purchased the item recently from Home Depot (in-store or online)
+- You've tried following the included instructions but they're confusing or incomplete
+- The device won't turn on, isn't connecting properly, or isn't working as expected
+- You're not very technical and find the manual difficult to understand
+- You need this equipment for a home project that you want to complete soon
+- You're worried you might have a defective unit or are missing something obvious
+- You may have already spent hours trying to figure it out
+
+Your goal is to get clear, simple instructions that will help you set up and use the equipment properly, or determine if you need to return/exchange it. 

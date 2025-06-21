@@ -21,7 +21,94 @@ h1 {
     font-weight: 300;
 }
 
-#chat-container {
+/* Mode Selector */
+.mode-selector {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.mode-button {
+    padding: 10px 20px;
+    border: 2px solid #007bff;
+    background-color: white;
+    color: #007bff;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.mode-button.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.mode-button:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    color: white;
+}
+
+/* Chat Interfaces */
+.chat-interface {
+    display: none;
+}
+
+.chat-interface.active {
+    display: block;
+}
+
+/* Simulation Controls */
+.simulation-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.simulation-controls select,
+.simulation-controls input {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 25px;
+    font-size: 16px;
+    flex: 1;
+    min-width: 150px;
+}
+
+.simulation-controls input[type="number"] {
+    width: 80px;
+    min-width: unset;
+    text-align: center;
+}
+
+#start-simulation {
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+#start-simulation:hover {
+    background-color: #218838;
+}
+
+#start-simulation:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+/* Chat Containers */
+#chat-container,
+#simulation-container {
     height: 500px;
     overflow-y: auto;
     border: 1px solid #ddd;
@@ -52,6 +139,36 @@ h1 {
     background-color: #e9ecef;
     color: #333;
     margin-right: auto;
+}
+
+.simulation-message {
+    margin: 15px 0;
+    padding: 12px 16px;
+    border-radius: 18px;
+    max-width: 70%;
+    word-wrap: break-word;
+    line-height: 1.4;
+}
+
+.user-agent-message {
+    background-color: #17a2b8;
+    color: white;
+    margin-left: auto;
+    text-align: right;
+}
+
+.chat-agent-message {
+    background-color: #28a745;
+    color: white;
+    margin-right: auto;
+}
+
+.system-message {
+    background-color: #6c757d;
+    color: white;
+    margin: 15px auto;
+    text-align: center;
+    max-width: 90%;
 }
 
 .input-container {
@@ -116,18 +233,53 @@ h1 {
     100% { transform: rotate(360deg); }
 }
 
+/* Simulation Status */
+#simulation-status {
+    text-align: center;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+#simulation-status.running {
+    background-color: #cce5ff;
+    color: #004085;
+}
+
+#simulation-status.completed {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+#simulation-status.error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
 /* Responsive design */
 @media (max-width: 600px) {
     .container {
         padding: 10px;
     }
     
-    #chat-container {
+    #chat-container,
+    #simulation-container {
         height: 400px;
     }
     
-    .message {
+    .message,
+    .simulation-message {
         max-width: 85%;
+    }
+    
+    .simulation-controls {
+        flex-direction: column;
+    }
+    
+    .simulation-controls select,
+    .simulation-controls input {
+        width: 100%;
     }
     
     #message-input {
