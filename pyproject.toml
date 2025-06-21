@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "chatbot-gym"
+version = "0.1.0"
+description = "A training dataset generator for chatbots"
+authors = ["Sky, Arindam"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+flask = "^3.1.1"
+python-dotenv = "^1.1.0"
+llama-api-client = "^0.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
