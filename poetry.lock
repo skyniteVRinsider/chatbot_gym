@@ -33,6 +33,23 @@ test = ["anyio[trio]", "blockbuster (>=1.5.23)", "coverage[toml] (>=7)", "except
 trio = ["trio (>=0.26.1)"]
 
 [[package]]
+name = "baml-py"
+version = "0.90.2"
+description = "BAML python bindings (pyproject.toml)"
+optional = false
+python-versions = "*"
+files = [
+    {file = "baml_py-0.90.2-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:9397f8580568d56b178d1605dd309ebb7a91ed8f39608b0fbb3585a918736998"},
+    {file = "baml_py-0.90.2-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:da85705916ad88342fb041f64dd4c81651db1771b05af9f70b2ff3004d825a61"},
+    {file = "baml_py-0.90.2-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0818bb92b9184cd29d042bcc638f5d471c2a1dc9a302b4e178b1d20c51d3a139"},
+    {file = "baml_py-0.90.2-cp38-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:703e17bbc22272dc5dfa4537c9118e653f98deb1c4977918f3b9db3ea75de86e"},
+    {file = "baml_py-0.90.2-cp38-abi3-musllinux_1_1_aarch64.whl", hash = "sha256:ac1c2fd4559a9d8a55c937997330796e33e498206d14c567a25e0ebe46a1beb4"},
+    {file = "baml_py-0.90.2-cp38-abi3-musllinux_1_1_x86_64.whl", hash = "sha256:a0de73a3b2787019904edd0cdbe3561241edc4c1a66e487df2cb66dad6928e86"},
+    {file = "baml_py-0.90.2-cp38-abi3-win_amd64.whl", hash = "sha256:be00a0e5fb3bc933fd29eade37b7caa882f7598624d4a4177d34e4bd5790c2a4"},
+    {file = "baml_py-0.90.2-cp38-abi3-win_arm64.whl", hash = "sha256:c04fe6446a41fa6063f012b3a41c6c562709324696859183aaf634a53a7572dc"},
+]
+
+[[package]]
 name = "blinker"
 version = "1.9.0"
 description = "Fast, simple object-to-object and broadcast signaling"
@@ -502,4 +519,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "8ada9a71e719328efcba4793d56a59e0234d1f4a2b25edee3f2cfa94968a64ce"
+content-hash = "b45ce34e0a2a95db35e9b06bd5ac95123e75aa39c803e73b158123aca4223628"

@@ -10,6 +10,7 @@ python = "^3.12"
 flask = "^3.1.1"
 python-dotenv = "^1.1.0"
 llama-api-client = "^0.1.1"
+baml-py = "0.90.2"
 
 
 [build-system]
