@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from typing import Optional, Dict, Any
 from user_agent import UserAgent
 from chat_agent import ChatAgent
@@ -94,13 +95,31 @@ class ConversationOrchestrator:
                 
                 print(f"[{self.user_agent.agent_id}]: {response}")
                 last_message = response
+                
+                # Check if UserAgent said goodbye - if so, let ChatAgent respond once more
+                if self._should_end_conversation(last_message):
+                    print(f"\n[{self.chat_agent.agent_id}] Providing final response...")
+                    time.sleep(delay_between_turns)
+                    
+                    final_response = self.chat_agent.generate_response(
+                        last_message, 
+                        self.user_agent.conversation_history
+                    )
+                    
+                    if final_response:
+                        print(f"[{self.chat_agent.agent_id}]: {final_response}")
+                        # Add the final ChatAgent response to conversation history
+                        self.user_agent.conversation_history.append({
+                            "speaker": "chat_agent",
+                            "message": final_response,
+                            "timestamp": datetime.now().isoformat()
+                        })
+                        turn_count += 1
+                    
+                    print("\nConversation ended naturally.")
+                    break
             
             turn_count += 1
-            
-            # Check for conversation ending conditions
-            if self._should_end_conversation(last_message):
-                print("\nConversation ended naturally.")
-                break
         
         print(f"Conversation completed after {turn_count} turns")
         
@@ -119,7 +138,7 @@ class ConversationOrchestrator:
             return False
     
     def _create_result_dict(self, success: bool, message: str, turn_count: int, 
-                           filepath: str = None) -> Dict[str, Any]:
+                           filepath: Optional[str] = None) -> Dict[str, Any]:
         """
         Create a standardized result dictionary.
         

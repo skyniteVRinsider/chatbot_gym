@@ -80,7 +80,7 @@ Your goal is to assist users with their problems in a friendly, patient, and eff
             return """You are a helpful, professional customer service representative. 
 Your goal is to assist users with their problems in a friendly, patient, and effective manner."""
     
-    def generate_response(self, user_message: str, conversation_context: list = None) -> Optional[str]:
+    def generate_response(self, user_message: str, conversation_context: Optional[list] = None) -> Optional[str]:
         """
         Generate a response to the user's message.
         
