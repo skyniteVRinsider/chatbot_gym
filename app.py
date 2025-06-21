@@ -122,6 +122,130 @@ def simulate():
             'error': f'Error running simulation: {str(e)}'
         }), 500
 
+@app.route('/batch-run', methods=['POST'])
+def batch_run():
+    """Endpoint to run batch simulations with all user agents."""
+    import threading
+    from datetime import datetime
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Get simulation parameters
+        chat_agent_type = data.get('chat_agent_type', 'homedepo_agent')
+        max_turns = data.get('max_turns', 10)
+        
+        # Create batch folder with timestamp
+        batch_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        batch_folder = f"conversations/batch_{batch_timestamp}"
+        os.makedirs(batch_folder, exist_ok=True)
+        
+        # All available user agent types
+        user_agent_methods = {
+            'frustrated_customer': 'create_frustrated_customer',
+            'confused_elderly': 'create_confused_elderly_user',
+            'anxious_student': 'create_anxious_student',
+            'demanding_executive': 'create_demanding_executive',
+            'frustrated_homeowner': 'create_frustrated_homeowner',
+            'anxious_tech_user': 'create_anxious_tech_user',
+            'demanding_customer': 'create_demanding_customer',
+            'elderly_homeowner': 'create_elderly_homeowner'
+        }
+        
+        chat_agent_methods = {
+            'homedepo_agent': 'create_homedepo_agent'
+        }
+        
+        # Validate chat agent type
+        chat_method = chat_agent_methods.get(chat_agent_type)
+        if not chat_method:
+            return jsonify({'error': 'Invalid chat agent type selected'}), 400
+        
+        # Results storage
+        results = {}
+        results_lock = threading.Lock()
+        
+        def run_single_simulation(user_agent_key, user_method_name):
+            """Run a single simulation in a thread."""
+            try:
+                # Create agents
+                user_agent = getattr(UserAgentTemplates, user_method_name)()
+                chat_agent = getattr(ChatAgentTemplates, chat_method)()
+                
+                # Create orchestrator
+                orchestrator = ConversationOrchestrator(user_agent, chat_agent)
+                
+                # Run simulation
+                result = orchestrator.start_conversation(
+                    max_turns=max_turns,
+                    delay_between_turns=0.1
+                )
+                
+                # Move the saved file to the batch folder
+                if result['saved_filepath']:
+                    import shutil
+                    filename = os.path.basename(result['saved_filepath'])
+                    new_filepath = os.path.join(batch_folder, filename)
+                    shutil.move(result['saved_filepath'], new_filepath)
+                    result['saved_filepath'] = new_filepath
+                
+                # Store result
+                with results_lock:
+                    results[user_agent_key] = {
+                        'success': result['success'],
+                        'message': result['message'],
+                        'turn_count': result['turn_count'],
+                        'saved_filepath': result['saved_filepath'],
+                        'conversation_summary': result['conversation_summary']
+                    }
+                    
+            except Exception as e:
+                with results_lock:
+                    results[user_agent_key] = {
+                        'success': False,
+                        'message': f'Error: {str(e)}',
+                        'turn_count': 0,
+                        'saved_filepath': None,
+                        'conversation_summary': None
+                    }
+        
+        # Start all simulations in parallel threads
+        threads = []
+        for user_agent_key, user_method_name in user_agent_methods.items():
+            thread = threading.Thread(
+                target=run_single_simulation,
+                args=(user_agent_key, user_method_name)
+            )
+            threads.append(thread)
+            thread.start()
+        
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+        
+        # Calculate summary statistics
+        successful_runs = sum(1 for r in results.values() if r['success'])
+        total_runs = len(results)
+        total_turns = sum(r['turn_count'] for r in results.values())
+        
+        return jsonify({
+            'success': True,
+            'message': f'Batch run completed: {successful_runs}/{total_runs} successful',
+            'batch_folder': batch_folder,
+            'batch_timestamp': batch_timestamp,
+            'total_runs': total_runs,
+            'successful_runs': successful_runs,
+            'total_turns': total_turns,
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': f'Error running batch simulation: {str(e)}'
+        }), 500
+
 @app.route('/')
 def home():
     return render_template('index.html')

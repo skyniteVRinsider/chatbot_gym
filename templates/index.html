@@ -12,6 +12,7 @@
         <div class="mode-selector">
             <button id="manual-mode" class="mode-button active">Manual Chat</button>
             <button id="simulation-mode" class="mode-button">Simulation Mode</button>
+            <button id="batch-mode" class="mode-button">Batch Run</button>
         </div>
         
         <!-- Manual Chat Interface -->
@@ -44,6 +45,27 @@
             </div>
             <div id="simulation-container"></div>
             <div id="simulation-status"></div>
+        </div>
+        
+        <!-- Batch Run Interface -->
+        <div id="batch-chat" class="chat-interface">
+            <div class="batch-controls">
+                <div class="batch-info">
+                    <h3>Batch Run - All User Agent Types</h3>
+                    <p>This will run simultaneous conversations with all 8 user agent types against the selected chat agent.</p>
+                </div>
+                <div class="batch-settings">
+                    <label for="batch-chat-agent-type">Chat Agent:</label>
+                    <select id="batch-chat-agent-type">
+                        <option value="homedepo_agent">Home Depot Agent</option>
+                    </select>
+                    <label for="batch-max-turns">Max turns per conversation:</label>
+                    <input type="number" id="batch-max-turns" value="20" min="1" max="30" step="1">
+                    <button id="start-batch" onclick="startBatchRun()">Start Batch Run</button>
+                </div>
+            </div>
+            <div id="batch-container"></div>
+            <div id="batch-status"></div>
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>

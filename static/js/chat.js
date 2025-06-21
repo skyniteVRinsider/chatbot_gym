@@ -9,13 +9,20 @@ class ChatApp {
         // Mode switching elements
         this.manualMode = document.getElementById('manual-mode');
         this.simulationMode = document.getElementById('simulation-mode');
+        this.batchMode = document.getElementById('batch-mode');
         this.manualChat = document.getElementById('manual-chat');
         this.simulationChat = document.getElementById('simulation-chat');
+        this.batchChat = document.getElementById('batch-chat');
         
         // Simulation elements
         this.simulationContainer = document.getElementById('simulation-container');
         this.startSimulationButton = document.getElementById('start-simulation');
         this.simulationStatus = document.getElementById('simulation-status');
+        
+        // Batch elements
+        this.batchContainer = document.getElementById('batch-container');
+        this.startBatchButton = document.getElementById('start-batch');
+        this.batchStatus = document.getElementById('batch-status');
         
         this.init();
     }
@@ -33,6 +40,7 @@ class ChatApp {
         // Add event listeners for mode switching
         this.manualMode.addEventListener('click', () => this.switchMode('manual'));
         this.simulationMode.addEventListener('click', () => this.switchMode('simulation'));
+        this.batchMode.addEventListener('click', () => this.switchMode('batch'));
         
         // Focus on input
         this.messageInput.focus();
@@ -42,16 +50,24 @@ class ChatApp {
     }
     
     switchMode(mode) {
+        // Remove active class from all modes
+        this.manualMode.classList.remove('active');
+        this.simulationMode.classList.remove('active');
+        this.batchMode.classList.remove('active');
+        this.manualChat.classList.remove('active');
+        this.simulationChat.classList.remove('active');
+        this.batchChat.classList.remove('active');
+        
+        // Add active class to selected mode
         if (mode === 'manual') {
             this.manualMode.classList.add('active');
-            this.simulationMode.classList.remove('active');
             this.manualChat.classList.add('active');
-            this.simulationChat.classList.remove('active');
-        } else {
-            this.manualMode.classList.remove('active');
+        } else if (mode === 'simulation') {
             this.simulationMode.classList.add('active');
-            this.manualChat.classList.remove('active');
             this.simulationChat.classList.add('active');
+        } else if (mode === 'batch') {
+            this.batchMode.classList.add('active');
+            this.batchChat.classList.add('active');
         }
     }
     
@@ -93,6 +109,33 @@ class ChatApp {
         this.simulationStatus.textContent = status;
         this.simulationStatus.className = type;
         this.startSimulationButton.disabled = type === 'running';
+    }
+    
+    setBatchStatus(status, type = 'running') {
+        this.batchStatus.textContent = status;
+        this.batchStatus.className = type;
+        this.startBatchButton.disabled = type === 'running';
+    }
+    
+    addBatchResult(agentType, result) {
+        const resultDiv = document.createElement('div');
+        resultDiv.className = `batch-result ${result.success ? 'success' : 'error'}`;
+        
+        const header = document.createElement('div');
+        header.className = 'batch-result-header';
+        header.textContent = `${agentType}: ${result.success ? 'Success' : 'Failed'}`;
+        
+        const details = document.createElement('div');
+        details.className = 'batch-result-details';
+        details.textContent = `${result.message} | Turns: ${result.turn_count}`;
+        if (result.saved_filepath) {
+            details.textContent += ` | Saved: ${result.saved_filepath}`;
+        }
+        
+        resultDiv.appendChild(header);
+        resultDiv.appendChild(details);
+        this.batchContainer.appendChild(resultDiv);
+        this.scrollToBottom(this.batchContainer);
     }
     
     async sendMessage() {
@@ -183,6 +226,72 @@ class ChatApp {
             this.setSimulationStatus(`Error: ${error.message}`, 'error');
         }
     }
+    
+    async startBatchRun() {
+        const chatAgentType = document.getElementById('batch-chat-agent-type').value;
+        const maxTurns = document.getElementById('batch-max-turns').value;
+        
+        // Clear previous batch results
+        this.batchContainer.innerHTML = '';
+        this.setBatchStatus('Starting batch run with all user agent types...', 'running');
+        
+        try {
+            const response = await fetch('/batch-run', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chat_agent_type: chatAgentType,
+                    max_turns: parseInt(maxTurns)
+                }),
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                this.setBatchStatus(`Error: ${data.error}`, 'error');
+                return;
+            }
+            
+            // Add header with batch info
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'batch-result';
+            headerDiv.innerHTML = `
+                <div class="batch-result-header">Batch Run Results - ${data.batch_timestamp}</div>
+                <div class="batch-result-details">
+                    Total: ${data.total_runs} | Successful: ${data.successful_runs} | 
+                    Total Turns: ${data.total_turns} | Folder: ${data.batch_folder}
+                </div>
+            `;
+            this.batchContainer.appendChild(headerDiv);
+            
+            // Add results for each agent type
+            const agentTypeNames = {
+                'frustrated_customer': 'Frustrated Customer (Delayed Materials)',
+                'confused_elderly': 'Confused Elderly (Tool Setup)',
+                'anxious_student': 'Anxious DIYer (Overwhelmed Project)',
+                'demanding_executive': 'Demanding Contractor (Urgent Job)',
+                'frustrated_homeowner': 'Frustrated Homeowner (DIY Project)',
+                'anxious_tech_user': 'Anxious Customer (Tool Problems)',
+                'demanding_customer': 'Demanding Customer (Delayed Order)',
+                'elderly_homeowner': 'Elderly Homeowner (Home Project)'
+            };
+            
+            Object.entries(data.results).forEach(([agentKey, result]) => {
+                const displayName = agentTypeNames[agentKey] || agentKey;
+                this.addBatchResult(displayName, result);
+            });
+            
+            this.setBatchStatus(
+                `Batch run completed! ${data.successful_runs}/${data.total_runs} successful conversations`,
+                'completed'
+            );
+            
+        } catch (error) {
+            this.setBatchStatus(`Error: ${error.message}`, 'error');
+        }
+    }
 }
 
 // Initialize the chat app when the DOM is loaded
@@ -200,5 +309,11 @@ function sendMessage() {
 function startSimulation() {
     if (window.chatApp) {
         window.chatApp.startSimulation();
+    }
+}
+
+function startBatchRun() {
+    if (window.chatApp) {
+        window.chatApp.startBatchRun();
     }
 } 
