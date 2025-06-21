@@ -10,9 +10,11 @@ class ChatApp {
         this.manualMode = document.getElementById('manual-mode');
         this.simulationMode = document.getElementById('simulation-mode');
         this.batchMode = document.getElementById('batch-mode');
+        this.analyzeMode = document.getElementById('analyze-mode');
         this.manualChat = document.getElementById('manual-chat');
         this.simulationChat = document.getElementById('simulation-chat');
         this.batchChat = document.getElementById('batch-chat');
+        this.analyzeChat = document.getElementById('analyze-chat');
         
         // Simulation elements
         this.simulationContainer = document.getElementById('simulation-container');
@@ -23,6 +25,12 @@ class ChatApp {
         this.batchContainer = document.getElementById('batch-container');
         this.startBatchButton = document.getElementById('start-batch');
         this.batchStatus = document.getElementById('batch-status');
+        
+        // Analyze elements
+        this.analyzeContainer = document.getElementById('analyze-container');
+        this.startAnalyzeButton = document.getElementById('start-analyze');
+        this.analyzeStatus = document.getElementById('analyze-status');
+        this.folderInput = document.getElementById('folder-input');
         
         this.init();
     }
@@ -41,6 +49,10 @@ class ChatApp {
         this.manualMode.addEventListener('click', () => this.switchMode('manual'));
         this.simulationMode.addEventListener('click', () => this.switchMode('simulation'));
         this.batchMode.addEventListener('click', () => this.switchMode('batch'));
+        this.analyzeMode.addEventListener('click', () => this.switchMode('analyze'));
+        
+        // Add folder input listener
+        this.folderInput.addEventListener('change', () => this.onFolderSelected());
         
         // Focus on input
         this.messageInput.focus();
@@ -54,9 +66,11 @@ class ChatApp {
         this.manualMode.classList.remove('active');
         this.simulationMode.classList.remove('active');
         this.batchMode.classList.remove('active');
+        this.analyzeMode.classList.remove('active');
         this.manualChat.classList.remove('active');
         this.simulationChat.classList.remove('active');
         this.batchChat.classList.remove('active');
+        this.analyzeChat.classList.remove('active');
         
         // Add active class to selected mode
         if (mode === 'manual') {
@@ -68,6 +82,9 @@ class ChatApp {
         } else if (mode === 'batch') {
             this.batchMode.classList.add('active');
             this.batchChat.classList.add('active');
+        } else if (mode === 'analyze') {
+            this.analyzeMode.classList.add('active');
+            this.analyzeChat.classList.add('active');
         }
     }
     
@@ -136,6 +153,75 @@ class ChatApp {
         resultDiv.appendChild(details);
         this.batchContainer.appendChild(resultDiv);
         this.scrollToBottom(this.batchContainer);
+    }
+    
+    setAnalyzeStatus(status, type = 'running') {
+        this.analyzeStatus.textContent = status;
+        this.analyzeStatus.className = type;
+        this.startAnalyzeButton.disabled = type === 'running';
+    }
+    
+    onFolderSelected() {
+        const files = this.folderInput.files;
+        const jsonFiles = Array.from(files).filter(file => file.name.endsWith('.json'));
+        
+        if (jsonFiles.length > 0) {
+            this.startAnalyzeButton.disabled = false;
+            this.setAnalyzeStatus(`${jsonFiles.length} JSON files selected`, 'completed');
+        } else {
+            this.startAnalyzeButton.disabled = true;
+            this.setAnalyzeStatus('No JSON files found in selected folder', 'error');
+        }
+    }
+    
+    addAnalyzeResult(filename, result) {
+        const resultDiv = document.createElement('div');
+        resultDiv.className = `analyze-result ${result.success ? 'success' : 'error'}`;
+        
+        const header = document.createElement('div');
+        header.className = 'analyze-result-header';
+        
+        const title = document.createElement('span');
+        title.textContent = `${filename}: ${result.success ? 'Analyzed' : 'Failed'}`;
+        
+        const score = document.createElement('span');
+        score.className = 'analyze-result-score';
+        if (result.success && result.analysis && result.analysis.overall_score) {
+            score.textContent = `Score: ${result.analysis.overall_score}/10`;
+        } else {
+            score.textContent = 'Error';
+            score.style.backgroundColor = '#dc3545';
+        }
+        
+        header.appendChild(title);
+        header.appendChild(score);
+        
+        const details = document.createElement('div');
+        details.className = 'analyze-result-details';
+        
+        if (result.success && result.analysis) {
+            if (result.analysis.outcome) {
+                details.textContent = `Outcome: ${result.analysis.outcome}`;
+            }
+            if (result.analysis.conversation_quality && result.analysis.conversation_quality.total_turns) {
+                details.textContent += ` | Turns: ${result.analysis.conversation_quality.total_turns}`;
+            }
+        } else {
+            details.textContent = result.error || 'Analysis failed';
+        }
+        
+        resultDiv.appendChild(header);
+        resultDiv.appendChild(details);
+        
+        if (result.success && result.analysis && result.analysis.summary) {
+            const summary = document.createElement('div');
+            summary.className = 'analyze-result-summary';
+            summary.textContent = result.analysis.summary;
+            resultDiv.appendChild(summary);
+        }
+        
+        this.analyzeContainer.appendChild(resultDiv);
+        this.scrollToBottom(this.analyzeContainer);
     }
     
     async sendMessage() {
@@ -292,6 +378,106 @@ class ChatApp {
             this.setBatchStatus(`Error: ${error.message}`, 'error');
         }
     }
+    
+    async startAnalyze() {
+        const files = this.folderInput.files;
+        const jsonFiles = Array.from(files).filter(file => file.name.endsWith('.json'));
+        
+        if (jsonFiles.length === 0) {
+            this.setAnalyzeStatus('No JSON files selected', 'error');
+            return;
+        }
+        
+        // Clear previous results
+        this.analyzeContainer.innerHTML = '';
+        this.setAnalyzeStatus(`Analyzing ${jsonFiles.length} transcripts...`, 'running');
+        
+        let completed = 0;
+        let successful = 0;
+        
+        for (const file of jsonFiles) {
+            try {
+                // Read file content
+                const fileContent = await this.readFileAsText(file);
+                const conversationData = JSON.parse(fileContent);
+                
+                // Send to judge endpoint
+                const response = await fetch('/judge', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        conversation_data: conversationData
+                    }),
+                });
+                
+                const result = await response.json();
+                
+                // Display result
+                this.addAnalyzeResult(file.name, result);
+                
+                if (result.success) {
+                    successful++;
+                    
+                    // Save analysis to file
+                    const analysisFilename = file.name.replace('.json', '_judge.json');
+                    const analysisData = {
+                        original_file: file.name,
+                        analysis_timestamp: new Date().toISOString(),
+                        analysis: result.analysis,
+                        raw_response: result.raw_response
+                    };
+                    
+                    // Create download link for the analysis
+                    this.downloadJSON(analysisData, analysisFilename);
+                }
+                
+                completed++;
+                this.setAnalyzeStatus(
+                    `Progress: ${completed}/${jsonFiles.length} files processed (${successful} successful)`,
+                    'running'
+                );
+                
+                // Small delay to prevent overwhelming the API
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+            } catch (error) {
+                console.error(`Error processing ${file.name}:`, error);
+                this.addAnalyzeResult(file.name, {
+                    success: false,
+                    error: error.message
+                });
+                completed++;
+            }
+        }
+        
+        this.setAnalyzeStatus(
+            `Analysis completed! ${successful}/${jsonFiles.length} files successfully analyzed`,
+            'completed'
+        );
+    }
+    
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = e => reject(e);
+            reader.readAsText(file);
+        });
+    }
+    
+    downloadJSON(data, filename) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
 }
 
 // Initialize the chat app when the DOM is loaded
@@ -315,5 +501,11 @@ function startSimulation() {
 function startBatchRun() {
     if (window.chatApp) {
         window.chatApp.startBatchRun();
+    }
+}
+
+function startAnalyze() {
+    if (window.chatApp) {
+        window.chatApp.startAnalyze();
     }
 } 

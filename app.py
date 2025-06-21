@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 import os
+import json
 from llama_api_client import LlamaAPIClient
 from dotenv import load_dotenv
 from user_agent import UserAgent, UserAgentTemplates
@@ -120,6 +121,73 @@ def simulate():
     except Exception as e:
         return jsonify({
             'error': f'Error running simulation: {str(e)}'
+        }), 500
+
+@app.route('/judge', methods=['POST'])
+def judge():
+    """Endpoint to analyze a conversation transcript using the judge prompt."""
+    try:
+        data = request.get_json()
+        if not data or 'conversation_data' not in data:
+            return jsonify({'error': 'No conversation data provided'}), 400
+        
+        conversation_data = data['conversation_data']
+        
+        # Load judge prompt
+        try:
+            with open('judge_prompt.txt', 'r', encoding='utf-8') as f:
+                judge_prompt = f.read().strip()
+        except FileNotFoundError:
+            return jsonify({'error': 'Judge prompt file not found'}), 500
+        except Exception as e:
+            return jsonify({'error': f'Error loading judge prompt: {str(e)}'}), 500
+        
+        if not llama_client:
+            return jsonify({'error': 'Llama API client not initialized'}), 500
+        
+        # Prepare the full prompt
+        full_prompt = f"{judge_prompt}\n\n{json.dumps(conversation_data, indent=2)}"
+        
+        # Call Llama API
+        completion = llama_client.chat.completions.create(
+            model="Llama-4-Maverick-17B-128E-Instruct-FP8",
+            messages=[
+                {
+                    "role": "user",
+                    "content": full_prompt,
+                }
+            ],
+        )
+        
+        # Extract the response
+        analysis_text = completion.completion_message.content.text
+        
+        # Try to parse the JSON response
+        try:
+            # Look for JSON content in the response
+            import re
+            json_match = re.search(r'```json\s*(\{.*?\})\s*```', analysis_text, re.DOTALL)
+            if json_match:
+                analysis_json = json.loads(json_match.group(1))
+            else:
+                # If no JSON block found, try to parse the entire response
+                analysis_json = json.loads(analysis_text)
+        except json.JSONDecodeError:
+            # If JSON parsing fails, return the raw text
+            analysis_json = {
+                "error": "Could not parse JSON response",
+                "raw_response": analysis_text
+            }
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis_json,
+            'raw_response': analysis_text
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': f'Error analyzing conversation: {str(e)}'
         }), 500
 
 @app.route('/batch-run', methods=['POST'])

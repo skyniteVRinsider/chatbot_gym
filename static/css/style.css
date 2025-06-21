@@ -238,6 +238,155 @@ h1 {
     color: #666;
 }
 
+/* Analyze Transcripts Controls */
+.analyze-controls {
+    margin-bottom: 20px;
+}
+
+.analyze-info {
+    background-color: #f0f8f0;
+    border: 1px solid #c3e6cb;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.analyze-info h3 {
+    margin: 0 0 10px 0;
+    color: #155724;
+}
+
+.analyze-info p {
+    margin: 0;
+    color: #333;
+}
+
+.analyze-settings {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.analyze-settings label {
+    font-weight: 500;
+    color: #333;
+}
+
+#folder-input {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 25px;
+    font-size: 16px;
+    min-width: 200px;
+}
+
+#start-analyze {
+    padding: 12px 24px;
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+#start-analyze:hover:not(:disabled) {
+    background-color: #138496;
+}
+
+#start-analyze:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+#analyze-container {
+    height: 500px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background-color: #fafafa;
+    scroll-behavior: smooth;
+}
+
+#analyze-status {
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-weight: 500;
+    text-align: center;
+}
+
+#analyze-status.running {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+#analyze-status.completed {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+#analyze-status.error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.analyze-result {
+    margin: 10px 0;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #17a2b8;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.analyze-result.success {
+    border-left-color: #28a745;
+}
+
+.analyze-result.error {
+    border-left-color: #dc3545;
+}
+
+.analyze-result-header {
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.analyze-result-score {
+    background-color: #007bff;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.analyze-result-details {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.analyze-result-summary {
+    font-style: italic;
+    color: #555;
+    border-top: 1px solid #eee;
+    padding-top: 8px;
+    margin-top: 8px;
+}
+
 /* Chat Containers */
 #chat-container,
 #simulation-container {
