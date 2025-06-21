@@ -186,7 +186,18 @@ class ChatApp {
         
         const score = document.createElement('span');
         score.className = 'analyze-result-score';
-        if (result.success && result.analysis && result.analysis.overall_score) {
+        
+        // Handle mixture of agents format
+        if (result.success && result.mixture_of_agents && result.synthesis) {
+            if (result.synthesis.overall_assessment && result.synthesis.overall_assessment.composite_score) {
+                score.textContent = `Score: ${result.synthesis.overall_assessment.composite_score}/10`;
+            } else if (result.synthesis.dimensional_scores && result.synthesis.dimensional_scores.weighted_average) {
+                score.textContent = `Score: ${result.synthesis.dimensional_scores.weighted_average}/10`;
+            } else {
+                score.textContent = 'Multi-Agent Analysis';
+            }
+        } else if (result.success && result.analysis && result.analysis.overall_score) {
+            // Handle legacy single agent format
             score.textContent = `Score: ${result.analysis.overall_score}/10`;
         } else {
             score.textContent = 'Error';
@@ -199,7 +210,17 @@ class ChatApp {
         const details = document.createElement('div');
         details.className = 'analyze-result-details';
         
-        if (result.success && result.analysis) {
+        if (result.success && result.mixture_of_agents) {
+            // Handle mixture of agents format
+            const summary = result.summary;
+            details.textContent = `Agents: ${summary.successful_agents}/${summary.total_agents} successful`;
+            
+            if (result.synthesis && result.synthesis.overall_assessment) {
+                details.textContent += ` | Grade: ${result.synthesis.overall_assessment.grade || 'N/A'}`;
+                details.textContent += ` | Outcome: ${result.synthesis.overall_assessment.conversation_outcome || 'N/A'}`;
+            }
+        } else if (result.success && result.analysis) {
+            // Handle legacy single agent format
             if (result.analysis.outcome) {
                 details.textContent = `Outcome: ${result.analysis.outcome}`;
             }
@@ -213,11 +234,58 @@ class ChatApp {
         resultDiv.appendChild(header);
         resultDiv.appendChild(details);
         
-        if (result.success && result.analysis && result.analysis.summary) {
+        // Add summary section
+        if (result.success) {
             const summary = document.createElement('div');
             summary.className = 'analyze-result-summary';
-            summary.textContent = result.analysis.summary;
-            resultDiv.appendChild(summary);
+            
+            if (result.mixture_of_agents && result.synthesis && result.synthesis.executive_summary) {
+                summary.textContent = result.synthesis.executive_summary;
+            } else if (result.analysis && result.analysis.summary) {
+                summary.textContent = result.analysis.summary;
+            }
+            
+            if (summary.textContent) {
+                resultDiv.appendChild(summary);
+            }
+        }
+        
+        // Add expandable details for mixture of agents
+        if (result.success && result.mixture_of_agents) {
+            const expandButton = document.createElement('button');
+            expandButton.textContent = 'Show Agent Details';
+            expandButton.className = 'analyze-expand-btn';
+            expandButton.style.cssText = 'margin-top: 8px; padding: 4px 8px; font-size: 12px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;';
+            
+            const detailsContainer = document.createElement('div');
+            detailsContainer.className = 'analyze-agent-details';
+            detailsContainer.style.display = 'none';
+            detailsContainer.style.marginTop = '10px';
+            detailsContainer.style.fontSize = '12px';
+            detailsContainer.style.color = '#666';
+            
+            // Add individual agent results
+            if (result.agent_analyses) {
+                Object.entries(result.agent_analyses).forEach(([agentName, agentResult]) => {
+                    const agentDiv = document.createElement('div');
+                    agentDiv.style.marginBottom = '5px';
+                    agentDiv.innerHTML = `<strong>${agentName}:</strong> ${agentResult.success ? 'Success' : 'Failed'}`;
+                    detailsContainer.appendChild(agentDiv);
+                });
+            }
+            
+            expandButton.addEventListener('click', () => {
+                if (detailsContainer.style.display === 'none') {
+                    detailsContainer.style.display = 'block';
+                    expandButton.textContent = 'Hide Agent Details';
+                } else {
+                    detailsContainer.style.display = 'none';
+                    expandButton.textContent = 'Show Agent Details';
+                }
+            });
+            
+            resultDiv.appendChild(expandButton);
+            resultDiv.appendChild(detailsContainer);
         }
         
         this.analyzeContainer.appendChild(resultDiv);
@@ -425,8 +493,12 @@ class ChatApp {
                     const analysisData = {
                         original_file: file.name,
                         analysis_timestamp: new Date().toISOString(),
-                        analysis: result.analysis,
-                        raw_response: result.raw_response
+                        mixture_of_agents: result.mixture_of_agents || false,
+                        analysis: result.analysis || null,
+                        agent_analyses: result.agent_analyses || null,
+                        synthesis: result.synthesis || null,
+                        summary: result.summary || null,
+                        raw_response: result.raw_response || null
                     };
                     
                     // Create download link for the analysis

@@ -125,7 +125,7 @@ def simulate():
 
 @app.route('/judge', methods=['POST'])
 def judge():
-    """Endpoint to analyze a conversation transcript using the judge prompt."""
+    """Endpoint to analyze a conversation transcript using a mixture of specialized judge agents."""
     try:
         data = request.get_json()
         if not data or 'conversation_data' not in data:
@@ -133,56 +133,154 @@ def judge():
         
         conversation_data = data['conversation_data']
         
-        # Load judge prompt
-        try:
-            with open('judge_prompt.txt', 'r', encoding='utf-8') as f:
-                judge_prompt = f.read().strip()
-        except FileNotFoundError:
-            return jsonify({'error': 'Judge prompt file not found'}), 500
-        except Exception as e:
-            return jsonify({'error': f'Error loading judge prompt: {str(e)}'}), 500
-        
         if not llama_client:
             return jsonify({'error': 'Llama API client not initialized'}), 500
         
-        # Prepare the full prompt
-        full_prompt = f"{judge_prompt}\n\n{json.dumps(conversation_data, indent=2)}"
+        # Define the specialized judge agents
+        judge_agents = [
+            'customer_satisfaction_judge.txt',
+            'agent_performance_judge.txt', 
+            'conversation_quality_judge.txt',
+            'business_impact_judge.txt'
+        ]
         
-        # Call Llama API
-        completion = llama_client.chat.completions.create(
-            model="Llama-4-Maverick-17B-128E-Instruct-FP8",
-            messages=[
-                {
-                    "role": "user",
-                    "content": full_prompt,
+        agent_analyses = {}
+        
+        # Run each specialized agent
+        for agent_file in judge_agents:
+            try:
+                # Load agent-specific prompt
+                agent_path = os.path.join('judge_prompts', agent_file)
+                with open(agent_path, 'r', encoding='utf-8') as f:
+                    agent_prompt = f.read().strip()
+                
+                # Prepare the full prompt for this agent
+                full_prompt = f"{agent_prompt}\n\n{json.dumps(conversation_data, indent=2)}"
+                
+                # Call Llama API for this agent
+                completion = llama_client.chat.completions.create(
+                    model="Llama-4-Maverick-17B-128E-Instruct-FP8",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": full_prompt,
+                        }
+                    ],
+                )
+                
+                # Extract and parse the response
+                analysis_text = completion.completion_message.content.text
+                
+                try:
+                    # Look for JSON content in the response
+                    import re
+                    json_match = re.search(r'```json\s*(\{.*?\})\s*```', analysis_text, re.DOTALL)
+                    if json_match:
+                        analysis_json = json.loads(json_match.group(1))
+                    else:
+                        # If no JSON block found, try to parse the entire response
+                        analysis_json = json.loads(analysis_text)
+                    
+                    # Store the analysis with agent identifier
+                    agent_name = agent_file.replace('_judge.txt', '').replace('.txt', '')
+                    agent_analyses[agent_name] = {
+                        'analysis': analysis_json,
+                        'raw_response': analysis_text,
+                        'success': True
+                    }
+                    
+                except json.JSONDecodeError:
+                    # If JSON parsing fails, store the raw text
+                    agent_name = agent_file.replace('_judge.txt', '').replace('.txt', '')
+                    agent_analyses[agent_name] = {
+                        'analysis': {
+                            "error": "Could not parse JSON response",
+                            "raw_response": analysis_text
+                        },
+                        'raw_response': analysis_text,
+                        'success': False
+                    }
+                
+                # Small delay between API calls to avoid rate limiting
+                import time
+                time.sleep(0.5)
+                
+            except FileNotFoundError:
+                agent_name = agent_file.replace('_judge.txt', '').replace('.txt', '')
+                agent_analyses[agent_name] = {
+                    'analysis': {'error': f'Judge prompt file {agent_file} not found'},
+                    'raw_response': '',
+                    'success': False
                 }
-            ],
-        )
+            except Exception as e:
+                agent_name = agent_file.replace('_judge.txt', '').replace('.txt', '')
+                agent_analyses[agent_name] = {
+                    'analysis': {'error': f'Error with agent {agent_name}: {str(e)}'},
+                    'raw_response': '',
+                    'success': False
+                }
         
-        # Extract the response
-        analysis_text = completion.completion_message.content.text
-        
-        # Try to parse the JSON response
+        # Run synthesis agent
+        synthesis_analysis = None
         try:
-            # Look for JSON content in the response
-            import re
-            json_match = re.search(r'```json\s*(\{.*?\})\s*```', analysis_text, re.DOTALL)
-            if json_match:
-                analysis_json = json.loads(json_match.group(1))
-            else:
-                # If no JSON block found, try to parse the entire response
-                analysis_json = json.loads(analysis_text)
-        except json.JSONDecodeError:
-            # If JSON parsing fails, return the raw text
-            analysis_json = {
-                "error": "Could not parse JSON response",
-                "raw_response": analysis_text
+            synthesis_path = os.path.join('judge_prompts', 'synthesis_judge.txt')
+            with open(synthesis_path, 'r', encoding='utf-8') as f:
+                synthesis_prompt = f.read().strip()
+            
+            # Prepare synthesis prompt with conversation data and all agent analyses
+            synthesis_data = {
+                'conversation_data': conversation_data,
+                'agent_analyses': agent_analyses
             }
+            
+            full_synthesis_prompt = f"{synthesis_prompt}\n\nCONVERSATION DATA:\n{json.dumps(conversation_data, indent=2)}\n\nAGENT ANALYSES:\n{json.dumps(agent_analyses, indent=2)}"
+            
+            # Call Llama API for synthesis
+            completion = llama_client.chat.completions.create(
+                model="Llama-4-Maverick-17B-128E-Instruct-FP8",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": full_synthesis_prompt,
+                    }
+                ],
+            )
+            
+            synthesis_text = completion.completion_message.content.text
+            
+            try:
+                # Parse synthesis response
+                import re
+                json_match = re.search(r'```json\s*(\{.*?\})\s*```', synthesis_text, re.DOTALL)
+                if json_match:
+                    synthesis_analysis = json.loads(json_match.group(1))
+                else:
+                    synthesis_analysis = json.loads(synthesis_text)
+            except json.JSONDecodeError:
+                synthesis_analysis = {
+                    "error": "Could not parse synthesis JSON response",
+                    "raw_response": synthesis_text
+                }
+                
+        except Exception as e:
+            synthesis_analysis = {
+                "error": f"Error in synthesis: {str(e)}"
+            }
+        
+        # Calculate overall success
+        successful_agents = sum(1 for analysis in agent_analyses.values() if analysis['success'])
+        total_agents = len(agent_analyses)
         
         return jsonify({
             'success': True,
-            'analysis': analysis_json,
-            'raw_response': analysis_text
+            'mixture_of_agents': True,
+            'agent_analyses': agent_analyses,
+            'synthesis': synthesis_analysis,
+            'summary': {
+                'successful_agents': successful_agents,
+                'total_agents': total_agents,
+                'overall_success': successful_agents >= (total_agents * 0.75)  # 75% success threshold
+            }
         })
         
     except Exception as e:
