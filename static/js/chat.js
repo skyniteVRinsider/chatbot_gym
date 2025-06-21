@@ -6,11 +6,22 @@ class ChatApp {
         this.sendButton = document.getElementById('send-button');
         this.isLoading = false;
         
+        // Mode switching elements
+        this.manualMode = document.getElementById('manual-mode');
+        this.simulationMode = document.getElementById('simulation-mode');
+        this.manualChat = document.getElementById('manual-chat');
+        this.simulationChat = document.getElementById('simulation-chat');
+        
+        // Simulation elements
+        this.simulationContainer = document.getElementById('simulation-container');
+        this.startSimulationButton = document.getElementById('start-simulation');
+        this.simulationStatus = document.getElementById('simulation-status');
+        
         this.init();
     }
     
     init() {
-        // Add event listeners
+        // Add event listeners for manual chat
         this.sendButton.addEventListener('click', () => this.sendMessage());
         this.messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -19,11 +30,29 @@ class ChatApp {
             }
         });
         
+        // Add event listeners for mode switching
+        this.manualMode.addEventListener('click', () => this.switchMode('manual'));
+        this.simulationMode.addEventListener('click', () => this.switchMode('simulation'));
+        
         // Focus on input
         this.messageInput.focus();
         
         // Add welcome message
         this.addMessage('Hello! I\'m Llama. How can I help you today?', false);
+    }
+    
+    switchMode(mode) {
+        if (mode === 'manual') {
+            this.manualMode.classList.add('active');
+            this.simulationMode.classList.remove('active');
+            this.manualChat.classList.add('active');
+            this.simulationChat.classList.remove('active');
+        } else {
+            this.manualMode.classList.remove('active');
+            this.simulationMode.classList.add('active');
+            this.manualChat.classList.remove('active');
+            this.simulationChat.classList.add('active');
+        }
     }
     
     addMessage(message, isUser) {
@@ -32,31 +61,20 @@ class ChatApp {
         messageDiv.textContent = message;
         
         this.chatContainer.appendChild(messageDiv);
-        this.scrollToBottom();
+        this.scrollToBottom(this.chatContainer);
     }
     
-    addLoadingMessage() {
+    addSimulationMessage(message, type) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'message bot-message';
-        messageDiv.id = 'loading-message';
+        messageDiv.className = `simulation-message ${type}-message`;
+        messageDiv.textContent = message;
         
-        const loadingSpinner = document.createElement('div');
-        loadingSpinner.className = 'loading';
-        
-        messageDiv.appendChild(loadingSpinner);
-        this.chatContainer.appendChild(messageDiv);
-        this.scrollToBottom();
+        this.simulationContainer.appendChild(messageDiv);
+        this.scrollToBottom(this.simulationContainer);
     }
     
-    removeLoadingMessage() {
-        const loadingMessage = document.getElementById('loading-message');
-        if (loadingMessage) {
-            loadingMessage.remove();
-        }
-    }
-    
-    scrollToBottom() {
-        this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+    scrollToBottom(container) {
+        container.scrollTop = container.scrollHeight;
     }
     
     setLoading(loading) {
@@ -66,11 +84,15 @@ class ChatApp {
         
         if (loading) {
             this.sendButton.textContent = 'Sending...';
-            this.addLoadingMessage();
         } else {
             this.sendButton.textContent = 'Send';
-            this.removeLoadingMessage();
         }
+    }
+    
+    setSimulationStatus(status, type = 'running') {
+        this.simulationStatus.textContent = status;
+        this.simulationStatus.className = type;
+        this.startSimulationButton.disabled = type === 'running';
     }
     
     async sendMessage() {
@@ -107,16 +129,76 @@ class ChatApp {
             this.messageInput.focus();
         }
     }
+    
+    async startSimulation() {
+        const userAgentType = document.getElementById('user-agent-type').value;
+        const chatAgentType = document.getElementById('chat-agent-type').value;
+        const maxTurns = document.getElementById('max-turns').value;
+        
+        // Clear previous simulation
+        this.simulationContainer.innerHTML = '';
+        this.setSimulationStatus('Starting simulation...', 'running');
+        
+        try {
+            const response = await fetch('/simulate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_agent_type: userAgentType,
+                    chat_agent_type: chatAgentType,
+                    max_turns: parseInt(maxTurns)
+                }),
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                this.setSimulationStatus(`Error: ${data.error}`, 'error');
+                return;
+            }
+            
+            // Add system message with agent types
+            this.addSimulationMessage(
+                `Starting conversation between ${userAgentType} and ${chatAgentType}`,
+                'system'
+            );
+            
+            // Add each message from the conversation
+            data.conversation.forEach(turn => {
+                const type = turn.speaker === 'user_agent' ? 'user-agent' : 'chat-agent';
+                this.addSimulationMessage(turn.message, type);
+            });
+            
+            // Add completion message
+            this.addSimulationMessage(
+                `Conversation completed after ${data.turn_count} turns. Transcript saved to: ${data.saved_filepath}`,
+                'system'
+            );
+            
+            this.setSimulationStatus('Simulation completed successfully!', 'completed');
+            
+        } catch (error) {
+            this.setSimulationStatus(`Error: ${error.message}`, 'error');
+        }
+    }
 }
 
 // Initialize the chat app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new ChatApp();
+    window.chatApp = new ChatApp();
 });
 
-// Legacy function for backward compatibility
+// Legacy function for backward compatibility with onclick handlers
 function sendMessage() {
     if (window.chatApp) {
         window.chatApp.sendMessage();
+    }
+}
+
+function startSimulation() {
+    if (window.chatApp) {
+        window.chatApp.startSimulation();
     }
 } 
