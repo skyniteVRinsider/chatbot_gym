@@ -49,17 +49,34 @@ class ConversationOrchestrator:
         else:
             last_message = None
         
-        # If we have an initial message from ChatAgent, use it
+        # If we have an initial message from ChatAgent, use it and add to history
         if last_message is not None:
             print(f"[{self.chat_agent.agent_id}]: {last_message}")
+            # Add initial chat_agent message to conversation history (no API call timing)
+            self.user_agent.conversation_history.append({
+                "speaker": "chat_agent",
+                "message": last_message,
+                "timestamp": datetime.now().isoformat(),
+                "response_time_seconds": "0.0"  # No API call for initial message
+            })
         else:
             # Otherwise, let the user agent start
             print(f"\n[{self.user_agent.agent_id}] Starting conversation...")
+            
+            # Track timing for initial user agent response
+            start_time = time.time()
             last_message = self.user_agent.generate_response("Hello, I need some help.")
+            end_time = time.time()
+            response_time = end_time - start_time
+            
             if last_message is None:
                 return self._create_result_dict(False, "Failed to generate initial user message", turn_count)
             
-            print(f"[{self.user_agent.agent_id}]: {last_message}")
+            # Update the last conversation entry with timing data
+            if self.user_agent.conversation_history:
+                self.user_agent.conversation_history[-1]['response_time_seconds'] = str(round(response_time, 3))
+            
+            print(f"[{self.user_agent.agent_id}]: {last_message} (Response time: {response_time:.3f}s)")
             turn_count += 1
         
         # Main conversation loop
@@ -69,31 +86,50 @@ class ConversationOrchestrator:
             if turn_count % 2 == (0 if initial_message else 1):
                 # ChatAgent's turn
                 print(f"\n[{self.chat_agent.agent_id}] Thinking...")
+                
+                # Track timing for chat agent response
+                start_time = time.time()
                 response = self.chat_agent.generate_response(
                     last_message, 
                     self.user_agent.conversation_history
                 )
+                end_time = time.time()
+                response_time = end_time - start_time
                 
                 if response is None:
                     print("ChatAgent failed to generate response")
                     break
                 
-                print(f"[{self.chat_agent.agent_id}]: {response}")
-                last_message = response
+                # Add chat agent response to user agent's conversation history with timing
+                self.user_agent.conversation_history.append({
+                    "speaker": "chat_agent",
+                    "message": response,
+                    "timestamp": datetime.now().isoformat(),
+                    "response_time_seconds": str(round(response_time, 3))
+                })
                 
-                # Update UserAgent's conversation history with ChatAgent's response
-                # (This will be done in the next UserAgent call)
+                print(f"[{self.chat_agent.agent_id}]: {response} (Response time: {response_time:.3f}s)")
+                last_message = response
                 
             else:
                 # UserAgent's turn
                 print(f"\n[{self.user_agent.agent_id}] Thinking...")
+                
+                # Track timing for user agent response
+                start_time = time.time()
                 response = self.user_agent.generate_response(last_message)
+                end_time = time.time()
+                response_time = end_time - start_time
                 
                 if response is None:
                     print("UserAgent failed to generate response")
                     break
                 
-                print(f"[{self.user_agent.agent_id}]: {response}")
+                # Update the last conversation entry (user_agent response) with timing data
+                if self.user_agent.conversation_history and self.user_agent.conversation_history[-1]['speaker'] == 'user_agent':
+                    self.user_agent.conversation_history[-1]['response_time_seconds'] = str(round(response_time, 3))
+                
+                print(f"[{self.user_agent.agent_id}]: {response} (Response time: {response_time:.3f}s)")
                 last_message = response
                 
                 # Check if UserAgent said goodbye - if so, let ChatAgent respond once more
@@ -101,18 +137,23 @@ class ConversationOrchestrator:
                     print(f"\n[{self.chat_agent.agent_id}] Providing final response...")
                     time.sleep(delay_between_turns)
                     
+                    # Track timing for final chat agent response
+                    start_time = time.time()
                     final_response = self.chat_agent.generate_response(
                         last_message, 
                         self.user_agent.conversation_history
                     )
+                    end_time = time.time()
+                    response_time = end_time - start_time
                     
                     if final_response:
-                        print(f"[{self.chat_agent.agent_id}]: {final_response}")
-                        # Add the final ChatAgent response to conversation history
+                        print(f"[{self.chat_agent.agent_id}]: {final_response} (Response time: {response_time:.3f}s)")
+                        # Add the final ChatAgent response to conversation history with timing
                         self.user_agent.conversation_history.append({
                             "speaker": "chat_agent",
                             "message": final_response,
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
+                            "response_time_seconds": str(round(response_time, 3))
                         })
                         turn_count += 1
                     
@@ -151,15 +192,63 @@ class ConversationOrchestrator:
         Returns:
             Dictionary with conversation results
         """
-        return {
+        # Calculate timing statistics
+        timing_stats = self._calculate_timing_stats()
+        
+        result = {
             "success": success,
             "message": message,
             "turn_count": turn_count,
             "user_agent_id": self.user_agent.agent_id,
             "chat_agent_id": self.chat_agent.agent_id,
             "conversation_summary": self.user_agent.get_conversation_summary(),
-            "saved_filepath": filepath
+            "saved_filepath": filepath,
+            "timing_statistics": timing_stats
         }
+        
+        return result
+    
+    def _calculate_timing_stats(self) -> Dict[str, Any]:
+        """
+        Calculate timing statistics from the conversation history.
+        
+        Returns:
+            Dictionary with timing statistics
+        """
+        user_agent_times = []
+        chat_agent_times = []
+        
+        for entry in self.user_agent.conversation_history:
+            if 'response_time_seconds' in entry:
+                try:
+                    response_time = float(entry['response_time_seconds'])
+                    if entry['speaker'] == 'user_agent':
+                        user_agent_times.append(response_time)
+                    elif entry['speaker'] == 'chat_agent':
+                        chat_agent_times.append(response_time)
+                except ValueError:
+                    # Skip entries with invalid timing data
+                    continue
+        
+        stats = {
+            "total_requests": len(user_agent_times) + len(chat_agent_times),
+            "user_agent": {
+                "total_requests": len(user_agent_times),
+                "total_time_seconds": round(sum(user_agent_times), 3) if user_agent_times else 0,
+                "average_time_seconds": round(sum(user_agent_times) / len(user_agent_times), 3) if user_agent_times else 0,
+                "min_time_seconds": min(user_agent_times) if user_agent_times else 0,
+                "max_time_seconds": max(user_agent_times) if user_agent_times else 0
+            },
+            "chat_agent": {
+                "total_requests": len(chat_agent_times),
+                "total_time_seconds": round(sum(chat_agent_times), 3) if chat_agent_times else 0,
+                "average_time_seconds": round(sum(chat_agent_times) / len(chat_agent_times), 3) if chat_agent_times else 0,
+                "min_time_seconds": min(chat_agent_times) if chat_agent_times else 0,
+                "max_time_seconds": max(chat_agent_times) if chat_agent_times else 0
+            }
+        }
+        
+        return stats
     
     def stop_conversation(self):
         """Stop the current conversation."""

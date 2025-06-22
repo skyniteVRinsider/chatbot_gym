@@ -151,13 +151,8 @@ ROLEPLAY SCENARIO:
             
             response = completion.completion_message.content.text
             
-            # Add both messages to conversation history
-            self.conversation_history.append({
-                "speaker": "chat_agent",
-                "message": chat_agent_message,
-                "timestamp": datetime.now().isoformat()
-            })
-            
+            # Only add the user_agent's response to conversation history
+            # The conversation orchestrator will manage chat_agent messages
             self.conversation_history.append({
                 "speaker": "user_agent",
                 "message": response,

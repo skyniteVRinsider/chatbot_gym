@@ -36,12 +36,29 @@ def chat():
             }), 400
 
         user_message = data['message']
+        
+        # Load HomeDepot prompt
+        try:
+            with open('chat_agents/homedepo_chat_agent.txt', 'r', encoding='utf-8') as f:
+                system_prompt = f.read().strip()
+        except Exception as e:
+            return jsonify({
+                'error': f'Error loading HomeDepot prompt: {str(e)}'
+            }), 500
 
-        # Call Llama API
+        # Call Llama API with HomeDepot prompt
         completion = llama_client.chat.completions.create(
             model="Llama-4-Maverick-17B-128E-Instruct-FP8",
             temperature=0.7,
             messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "assistant",
+                    "content": "Hello! Welcome to The Home Depot. I'm here to help you with your home improvement project. What can I assist you with today?"
+                },
                 {
                     "role": "user",
                     "content": user_message,
